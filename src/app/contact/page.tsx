@@ -11,7 +11,7 @@ export default function ContactPage() {
           <PageHeader
             eyebrow="COMMUNICATION // CONTACT"
             title="Reach out through direct channels or draft a message here."
-            description="This page uses your actual contact details from the current resume source. The form opens a drafted email in the user's mail client instead of pretending there is a backend submission flow."
+            description="Choose a direct channel, or use the form to prepare a message in your preferred email client."
           />
         </section>
 
@@ -32,9 +32,8 @@ export default function ContactPage() {
                 Contact Note
               </p>
               <p className="mt-4 text-sm leading-7 text-foreground-soft">
-                For now, this page is intentionally honest about its behavior.
-                It drafts an email instead of simulating a backend contact form
-                that does not exist yet.
+                Clicking the email channel or the draft button opens your
+                default email client. LinkedIn and GitHub open in a new tab.
               </p>
             </div>
           </aside>

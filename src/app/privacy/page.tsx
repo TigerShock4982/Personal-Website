@@ -4,7 +4,7 @@ import PageHeader from "@/components/PageHeader";
 const privacySections = [
   {
     title: "Data Handling",
-    body: "This portfolio does not currently present itself as a data-heavy application. The contact workflow is intentionally simple and transparent: it opens the visitor's mail client rather than pretending there is a hidden submission backend. I avoid exposing unnecessary personal information, and public contact details are limited to the minimum needed for professional communication.",
+    body: "This portfolio does not submit or store information entered into the contact form. The form only prepares a local email draft through the visitor's configured email client. Visitors can also copy my public email address to use in a browser-based email service. Clipboard access occurs only when the visitor selects the Copy control, and it replaces the clipboard's current contents.",
   },
   {
     title: "External Links and Documents",

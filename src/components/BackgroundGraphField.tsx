@@ -33,6 +33,13 @@ type Cluster = {
   y: number;
   vx: number;
   vy: number;
+  collisionRadius: number;
+  zoneX: number;
+  zoneY: number;
+  zoneVx: number;
+  zoneVy: number;
+  zoneRadiusX: number;
+  zoneRadiusY: number;
   driftPhase: number;
   driftSpeed: number;
   driftRadiusX: number;
@@ -42,7 +49,7 @@ type Cluster = {
 };
 
 type GraphTemplate = {
-  type: "complete" | "constellation" | "star";
+  type: "complete" | "constellation" | "bridge" | "star";
   anchors: Array<{ x: number; y: number }>;
   edges: Edge[];
 };
@@ -51,6 +58,7 @@ const NODE_COLOR = "rgba(96, 165, 250, 0.78)";
 const NODE_GLOW = "rgba(59, 130, 246, 0.18)";
 const EDGE_COLOR = "rgba(94, 234, 212, 0.22)";
 const EDGE_COLOR_STRONG = "rgba(125, 211, 252, 0.34)";
+const MOVEMENT_SPEED = 1.2;
 
 function randomBetween(min: number, max: number) {
   return min + Math.random() * (max - min);
@@ -101,6 +109,29 @@ function constellationGraph(scale: number): GraphTemplate {
   return { type: "constellation", anchors, edges };
 }
 
+function bridgeGraph(): GraphTemplate {
+  const anchors = [
+    { x: -86, y: 32 },
+    { x: -52, y: -38 },
+    { x: -12, y: 8 },
+    { x: 24, y: -48 },
+    { x: 58, y: 26 },
+    { x: 88, y: -16 },
+  ];
+
+  const edges = [
+    { from: 0, to: 1 },
+    { from: 0, to: 2 },
+    { from: 1, to: 2 },
+    { from: 2, to: 3 },
+    { from: 2, to: 4 },
+    { from: 3, to: 4 },
+    { from: 4, to: 5 },
+  ];
+
+  return { type: "bridge", anchors, edges };
+}
+
 function starGraph(nodeCount: number, radiusX: number, radiusY: number): GraphTemplate {
   const anchors = [{ x: 0, y: 0 }];
 
@@ -125,7 +156,7 @@ function getTemplates(): GraphTemplate[] {
     completeGraph(5, 72, 68),
     completeGraph(4, 82, 74),
     constellationGraph(1),
-    constellationGraph(1.15),
+    bridgeGraph(),
     starGraph(4, 84, 76),
     starGraph(6, 92, 84),
   ];
@@ -135,18 +166,61 @@ function createScene(width: number, height: number) {
   const templates = getTemplates();
   const clusters: Cluster[] = [];
   const nodes: Node[] = [];
+  const columns = Math.max(
+    1,
+    Math.min(templates.length, Math.round(Math.sqrt(templates.length * (width / height))))
+  );
+  const rows = Math.ceil(templates.length / columns);
+  const fieldLeft = width * 0.1;
+  const fieldTop = height * 0.14;
+  const fieldWidth = width * 0.8;
+  const fieldHeight = height * 0.72;
+  const cellWidth = fieldWidth / columns;
+  const cellHeight = fieldHeight / rows;
+  const graphScale = Math.min(1.3, cellWidth / 190, cellHeight / 175) * 0.6;
   let nodeId = 0;
 
   for (let i = 0; i < templates.length; i += 1) {
     const template = templates[i];
+    const column = i % columns;
+    const row = Math.floor(i / columns);
+    const rowItemCount = Math.min(columns, templates.length - row * columns);
+    const rowOffset = ((columns - rowItemCount) * cellWidth) / 2;
+    const scaledAnchors = template.anchors.map((anchor) => ({
+      x: anchor.x * graphScale,
+      y: anchor.y * graphScale,
+    }));
+    const x = fieldLeft + rowOffset + (column + 0.5) * cellWidth;
+    const y = fieldTop + (row + 0.5) * cellHeight;
+    const collisionRadius =
+      Math.max(...scaledAnchors.map((anchor) => Math.hypot(anchor.x, anchor.y))) +
+      18 * graphScale;
+    const zoneRadiusX = Math.min(
+      cellWidth * 0.16,
+      Math.max(14, collisionRadius * 0.35)
+    );
+    const zoneRadiusY = Math.min(
+      cellHeight * 0.16,
+      Math.max(14, collisionRadius * 0.35)
+    );
+    const zoneAngle = randomBetween(0, Math.PI * 2);
+    const zoneSpeed = randomBetween(0.14, 0.3);
     const cluster: Cluster = {
       id: i,
-      x: randomBetween(width * 0.12, width * 0.88),
-      y: randomBetween(height * 0.16, height * 0.84),
-      vx: randomBetween(-0.387072, 0.387072),
-      vy: randomBetween(-0.290304, 0.290304),
+      x,
+      y,
+      vx: randomBetween(-0.387072, 0.387072) * MOVEMENT_SPEED,
+      vy: randomBetween(-0.290304, 0.290304) * MOVEMENT_SPEED,
+      collisionRadius,
+      zoneX: x,
+      zoneY: y,
+      zoneVx: Math.cos(zoneAngle) * zoneSpeed,
+      zoneVy: Math.sin(zoneAngle) * zoneSpeed,
+      zoneRadiusX,
+      zoneRadiusY,
       driftPhase: randomBetween(0, Math.PI * 2),
-      driftSpeed: randomBetween(0.000290304, 0.000580608),
+      driftSpeed:
+        randomBetween(0.000290304, 0.000580608) * MOVEMENT_SPEED,
       driftRadiusX: randomBetween(0.056448, 0.129024),
       driftRadiusY: randomBetween(0.04032, 0.104832),
       edges: template.edges,
@@ -155,7 +229,7 @@ function createScene(width: number, height: number) {
 
     clusters.push(cluster);
 
-    for (const anchor of template.anchors) {
+    for (const anchor of scaledAnchors) {
       nodes.push({
         id: nodeId,
         clusterId: cluster.id,
@@ -165,7 +239,7 @@ function createScene(width: number, height: number) {
         vy: randomBetween(-0.18, 0.18),
         anchorX: anchor.x,
         anchorY: anchor.y,
-        radius: randomBetween(2.4, 4.3),
+        radius: randomBetween(2.4, 4.3) * 0.6,
         blinkPhase: randomBetween(0, Math.PI * 2),
         blinkSpeed: randomBetween(0.03, 0.068),
         blinkAmplitude: randomBetween(0.22, 0.52),
@@ -216,6 +290,93 @@ export default function BackgroundGraphField() {
 
     const update = () => {
       const { clusters, nodes } = scene;
+      const previousZonePositions = clusters.map((cluster) => ({
+        x: cluster.zoneX,
+        y: cluster.zoneY,
+      }));
+
+      for (const cluster of clusters) {
+        const zoneExtentX = cluster.collisionRadius + cluster.zoneRadiusX;
+        const zoneExtentY = cluster.collisionRadius + cluster.zoneRadiusY;
+
+        cluster.zoneX += cluster.zoneVx;
+        cluster.zoneY += cluster.zoneVy;
+
+        if (cluster.zoneX < zoneExtentX) {
+          cluster.zoneX = zoneExtentX;
+          cluster.zoneVx = Math.abs(cluster.zoneVx);
+        } else if (cluster.zoneX > width - zoneExtentX) {
+          cluster.zoneX = width - zoneExtentX;
+          cluster.zoneVx = -Math.abs(cluster.zoneVx);
+        }
+
+        if (cluster.zoneY < zoneExtentY) {
+          cluster.zoneY = zoneExtentY;
+          cluster.zoneVy = Math.abs(cluster.zoneVy);
+        } else if (cluster.zoneY > height - zoneExtentY) {
+          cluster.zoneY = height - zoneExtentY;
+          cluster.zoneVy = -Math.abs(cluster.zoneVy);
+        }
+      }
+
+      for (let i = 0; i < clusters.length; i += 1) {
+        for (let j = i + 1; j < clusters.length; j += 1) {
+          const a = clusters[i];
+          const b = clusters[j];
+          let dx = b.zoneX - a.zoneX;
+          let dy = b.zoneY - a.zoneY;
+          let dist = Math.sqrt(dx * dx + dy * dy);
+          const aExtent =
+            a.collisionRadius + Math.max(a.zoneRadiusX, a.zoneRadiusY);
+          const bExtent =
+            b.collisionRadius + Math.max(b.zoneRadiusX, b.zoneRadiusY);
+          const minDist = aExtent + bExtent + 12;
+
+          if (dist < minDist) {
+            if (dist < 0.001) {
+              const angle = ((a.id + 1) * 2.39996) % (Math.PI * 2);
+              dx = Math.cos(angle);
+              dy = Math.sin(angle);
+              dist = 1;
+            }
+
+            const nx = dx / dist;
+            const ny = dy / dist;
+            const correction = (minDist - dist) * 0.5;
+            const relativeVelocity =
+              (b.zoneVx - a.zoneVx) * nx + (b.zoneVy - a.zoneVy) * ny;
+
+            a.zoneX -= nx * correction;
+            a.zoneY -= ny * correction;
+            b.zoneX += nx * correction;
+            b.zoneY += ny * correction;
+
+            if (relativeVelocity < 0) {
+              a.zoneVx += nx * relativeVelocity;
+              a.zoneVy += ny * relativeVelocity;
+              b.zoneVx -= nx * relativeVelocity;
+              b.zoneVy -= ny * relativeVelocity;
+            }
+          }
+        }
+      }
+
+      for (const cluster of clusters) {
+        const zoneExtentX = cluster.collisionRadius + cluster.zoneRadiusX;
+        const zoneExtentY = cluster.collisionRadius + cluster.zoneRadiusY;
+        const previousZone = previousZonePositions[cluster.id];
+
+        cluster.zoneX = Math.max(
+          zoneExtentX,
+          Math.min(width - zoneExtentX, cluster.zoneX)
+        );
+        cluster.zoneY = Math.max(
+          zoneExtentY,
+          Math.min(height - zoneExtentY, cluster.zoneY)
+        );
+        cluster.x += cluster.zoneX - previousZone.x;
+        cluster.y += cluster.zoneY - previousZone.y;
+      }
 
       for (const cluster of clusters) {
         cluster.driftPhase += cluster.driftSpeed;
@@ -223,28 +384,35 @@ export default function BackgroundGraphField() {
         cluster.vx +=
           Math.cos(cluster.driftPhase + cluster.id) *
           cluster.driftRadiusX *
-          0.0144;
+          0.0144 *
+          MOVEMENT_SPEED;
         cluster.vy +=
           Math.sin(cluster.driftPhase * 1.12 + cluster.id) *
           cluster.driftRadiusY *
-          0.0144;
+          0.0144 *
+          MOVEMENT_SPEED;
 
         cluster.x += cluster.vx;
         cluster.y += cluster.vy;
 
-        if (cluster.x < width * 0.1) {
-          cluster.x = width * 0.1;
+        const minX = cluster.zoneX - cluster.zoneRadiusX;
+        const maxX = cluster.zoneX + cluster.zoneRadiusX;
+        const minY = cluster.zoneY - cluster.zoneRadiusY;
+        const maxY = cluster.zoneY + cluster.zoneRadiusY;
+
+        if (cluster.x < minX) {
+          cluster.x = minX;
           cluster.vx = Math.abs(cluster.vx) * 0.24;
-        } else if (cluster.x > width * 0.9) {
-          cluster.x = width * 0.9;
+        } else if (cluster.x > maxX) {
+          cluster.x = maxX;
           cluster.vx = -Math.abs(cluster.vx) * 0.24;
         }
 
-        if (cluster.y < height * 0.14) {
-          cluster.y = height * 0.14;
+        if (cluster.y < minY) {
+          cluster.y = minY;
           cluster.vy = Math.abs(cluster.vy) * 0.24;
-        } else if (cluster.y > height * 0.86) {
-          cluster.y = height * 0.86;
+        } else if (cluster.y > maxY) {
+          cluster.y = maxY;
           cluster.vy = -Math.abs(cluster.vy) * 0.24;
         }
       }
@@ -253,15 +421,30 @@ export default function BackgroundGraphField() {
         for (let j = i + 1; j < clusters.length; j += 1) {
           const a = clusters[i];
           const b = clusters[j];
-          const dx = b.x - a.x;
-          const dy = b.y - a.y;
-          const dist = Math.sqrt(dx * dx + dy * dy) || 1;
-          const minDist = 188;
+          let dx = b.x - a.x;
+          let dy = b.y - a.y;
+          let dist = Math.sqrt(dx * dx + dy * dy);
+          const minDist = a.collisionRadius + b.collisionRadius;
 
           if (dist < minDist) {
-            const force = ((minDist - dist) / minDist) * 0.055;
+            if (dist < 0.001) {
+              const angle = ((a.id + 1) * 2.39996) % (Math.PI * 2);
+              dx = Math.cos(angle);
+              dy = Math.sin(angle);
+              dist = 1;
+            }
+
             const nx = dx / dist;
             const ny = dy / dist;
+            const overlap = minDist - dist;
+            const correction = overlap * 0.5;
+            const force =
+              (overlap / minDist) * 0.055 * MOVEMENT_SPEED;
+
+            a.x -= nx * correction;
+            a.y -= ny * correction;
+            b.x += nx * correction;
+            b.y += ny * correction;
 
             a.vx -= nx * force;
             a.vy -= ny * force;
@@ -272,8 +455,22 @@ export default function BackgroundGraphField() {
       }
 
       for (const cluster of clusters) {
-        cluster.vx = Math.max(-0.516096, Math.min(0.516096, cluster.vx * 0.99976));
-        cluster.vy = Math.max(-0.387072, Math.min(0.387072, cluster.vy * 0.99976));
+        cluster.x = Math.max(
+          cluster.zoneX - cluster.zoneRadiusX,
+          Math.min(cluster.zoneX + cluster.zoneRadiusX, cluster.x)
+        );
+        cluster.y = Math.max(
+          cluster.zoneY - cluster.zoneRadiusY,
+          Math.min(cluster.zoneY + cluster.zoneRadiusY, cluster.y)
+        );
+        cluster.vx = Math.max(
+          -0.516096 * MOVEMENT_SPEED,
+          Math.min(0.516096 * MOVEMENT_SPEED, cluster.vx * 0.99976)
+        );
+        cluster.vy = Math.max(
+          -0.387072 * MOVEMENT_SPEED,
+          Math.min(0.387072 * MOVEMENT_SPEED, cluster.vy * 0.99976)
+        );
       }
 
       for (const node of nodes) {
