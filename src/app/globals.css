@@ -1,26 +1,106 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  color-scheme: dark;
+
+  --background: #0f1115;
+  --foreground: #e2e8f0;
+  --foreground-soft: #cbd5e1;
+
+  --card: #161b22;
+  --card-muted: #11161c;
+  --card-hover: #1c2128;
+  --border: #30363d;
+  --border-strong: #3f4a57;
+
+  --muted: #64748b;
+  --muted-foreground: #94a3b8;
+
+  --accent: #3b82f6;
+  --accent-soft: rgba(59, 130, 246, 0.15);
+  --ring: rgba(59, 130, 246, 0.45);
+  --radius: 0.75rem;
+
+  --font-size: 16px;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
+  --color-foreground-soft: var(--foreground-soft);
+
+  --color-card: var(--card);
+  --color-card-muted: var(--card-muted);
+  --color-card-hover: var(--card-hover);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-ring: var(--ring);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+* {
+  box-sizing: border-box;
+  border-color: var(--border);
+}
+
+html {
+  font-size: var(--font-size);
+  scroll-behavior: smooth;
 }
 
 body {
+  min-height: 100vh;
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  line-height: 1.5;
+  text-rendering: optimizeLegibility;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea,
+select {
+  font: inherit;
+}
+
+:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+@layer base {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+}
+
+::selection {
+  background: rgba(59, 130, 246, 0.3);
 }
